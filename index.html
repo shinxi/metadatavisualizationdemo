@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Data Flow Diagram</title>
+    <meta name="description" content="Metadata Analysis;Matadata Management;元数据管理;元数据分析" />
+    <!-- Copyright 1998-2016 by Northwoods Software Corporation. -->
+    <meta charset="UTF-8">
+    <script src="go.js"></script>
+    <link href="goSamples.css" rel="stylesheet" type="text/css" />
+    <!-- this is only for the GoJS Samples framework -->
+    <script id="code">
+    var $ = go.GraphObject.make;
+
+    function init() {
+        // if (window.goSamples) goSamples(); // init for these samples -- you don't need to call this
+
+
+
+        window.myDiagram =
+            $(go.Diagram, "myDiagramDiv", {
+                initialContentAlignment: go.Spot.TopCenter, // center Diagram contents
+                // initialPosition: new go.Point(0, 0),
+                // position: new go.Point(100, 100),
+                "undoManager.isEnabled": true
+                    //  // enable Ctrl-Z to undo and Ctrl-Y to redo
+                    //     
+                    //     ,
+                    // layout: $(go.GridLayout, {
+                    //     wrappingColumn: 2,
+                    //     spacing: new go.Size(100, 50)
+                    // })
+            });
+
+        go.ToolManager.hoverDelay = 1;
+
+        addGroupTemplatesToDiagram(myDiagram);
+        addLinkTemplatesToDiagram(myDiagram);
+        addNodeTemplatesToDiagram(myDiagram);
+
+        var data = genTopDiagramData(); //genDataDiagramData(); //genTopDiagramData();genSystemDiagramData genTableDiagramData
+
+        myDiagram.model.nodeDataArray = data.nodes;
+        myDiagram.model.linkDataArray = data.links;
+        myDiagram.model.linkFromPortIdProperty = "fromPort";
+        myDiagram.model.linkToPortIdProperty = "toPort";
+    }
+
+    function onLinkClick(e, link) {
+        myDiagram.startTransaction("generateDataMapping");
+        myDiagram.clear();
+        var data = genDataDiagramData();
+        myDiagram.layout = $(go.GridLayout, {
+            wrappingColumn: 2,
+            spacing: new go.Size(100, 50)
+        })
+        myDiagram.model.nodeDataArray = data.nodes;
+        myDiagram.model.linkDataArray = data.links;
+        myDiagram.contentAlignment = new go.Spot(0.5, 0.2);
+        myDiagram.commitTransaction("generateDataMapping");
+    }
+
+    function onSystemClick(e, node) {
+        myDiagram.startTransaction("generateSystemDiagram");
+        myDiagram.clear();
+        var data = genSystemDiagramData(node.data.name);
+        myDiagram.layout = $(go.GridLayout, {})
+        myDiagram.model.nodeDataArray = data.nodes;
+        myDiagram.model.linkDataArray = data.links;
+        myDiagram.contentAlignment = go.Spot.Center;
+        myDiagram.commitTransaction("generateSystemDiagram");
+    }
+
+    function onTableClick(e, node) {
+        myDiagram.startTransaction("generateTableDiagram");
+        myDiagram.clear();
+        var data = genTableDiagramData(node.data);
+        myDiagram.layout = $(go.GridLayout, {})
+        myDiagram.model.nodeDataArray = data.nodes;
+        myDiagram.model.linkDataArray = data.links;
+        myDiagram.contentAlignment = go.Spot.Center;
+        myDiagram.commitTransaction("generateTableDiagram");
+    }
+
+    function returnToTopDiagram(e, link) {
+        myDiagram.clear();
+        myDiagram.startTransaction("generateTopDiagram");
+        var data = genTopDiagramData();
+        myDiagram.layout = $(go.Layout);
+        myDiagram.model.nodeDataArray = data.nodes;
+        myDiagram.model.linkDataArray = data.links;
+        // myDiagram.contentAlignment = new go.Spot(0.5, 0.2);
+        myDiagram.commitTransaction("generateTopDiagram");
+    }
+
+    function addLinkTemplatesToDiagram(myDiagram) {
+
+        var curveLink =
+            $(go.Link, // the whole link panel
+                {
+
+                    mouseEnter: onLinkMouseEnter,
+                    mouseLeave: onLinkMouseLeave,
+                    curve: go.Link.Bezier,
+                    adjusting: go.Link.Stretch,
+                    reshapable: true,
+                    relinkableFrom: true,
+                    relinkableTo: true,
+                    toShortLength: 3,
+                    cursor: "pointer",
+                    click: onLinkClick,
+                    curviness: 20,
+                    toolTip: // define a tooltip for each node
+                        $(go.Adornment, "Spot", // that has several labels around it
+                        {
+                            background: "transparent"
+                        }, // avoid hiding tooltip when mouse moves
+                        $(go.Placeholder, {
+                            padding: 5
+                        }),
+                        $(go.TextBlock, {
+                            alignment: go.Spot.Top,
+                            alignmentFocus: go.Spot.Bottom,
+                            stroke: "white",
+                            font: "bold 16px sans-serif",
+                            text: "点击查看详情"
+                        })
+                    )
+                },
+                new go.Binding("points").makeTwoWay(),
+                $(go.Shape, // the link shape
+                    {
+                        strokeWidth: 1.5
+                    }, new go.Binding("stroke", "isHighlighted", function(h) {
+                        return h ? "crimson" : "black";
+                    })
+                    .ofObject()),
+                $(go.Shape, // the arrowhead
+                    {
+                        toArrow: "standard",
+                        stroke: null
+                    }, new go.Binding("fill", "isHighlighted", function(h) {
+                        return h ? "crimson" : "black";
+                    })
+                    .ofObject()),
+                $(go.Panel, "Auto",
+                    $(go.Shape, // the label background, which becomes transparent around the edges
+                        {
+                            fill: $(go.Brush, "Radial", {
+                                0: "rgb(240, 240, 240)",
+                                0.3: "rgb(240, 240, 240)",
+                                1: "rgba(240, 240, 240, 0)"
+                            }),
+                            stroke: null
+                        }),
+                    $(go.TextBlock, "关联", // the label text
+                        {
+                            textAlign: "center",
+                            font: "9pt helvetica, arial, sans-serif",
+                            margin: 4,
+                            editable: true // enable in-place editing
+                        },
+                        // editing the text automatically updates the model data
+                        new go.Binding("text").makeTwoWay())
+                )
+            );
+
+        var orthogonalLink = $(go.Link, {
+                mouseEnter: onLinkMouseEnter,
+                mouseLeave: onLinkMouseLeave,
+                routing: go.Link.Orthogonal
+            },
+            $(go.Shape, new go.Binding("stroke", "isHighlighted", function(h) {
+                    return h ? "crimson" : "black";
+                })
+                .ofObject()),
+            $(go.Shape, {
+                    toArrow: "Standard",
+                    stroke: null,
+                }, new go.Binding("fill", "isHighlighted", function(h) {
+                    return h ? "crimson" : "black";
+                })
+                .ofObject())
+        );
+
+
+        var fieldLink = $(go.Link, {
+                relinkableFrom: true,
+                relinkableTo: true, // let user reconnect links
+                toShortLength: 4,
+                fromShortLength: 2,
+                routing: go.Link.Orthogonal,  // may be either Orthogonal or AvoidsNodes
+                // curve: go.Link.Bezier,
+                    // adjusting: go.Link.Stretch
+            },
+            new go.Binding("routing", "datamap", function() {
+              return go.Link.Normal
+            }),
+            $(go.Shape, {
+                strokeWidth: 1.5
+            }),
+            $(go.Shape, {
+                toArrow: "Standard",
+                stroke: null
+            })
+        );
+
+
+        var linkTemplateMap = new go.Map("string", go.Link);
+
+        linkTemplateMap.add("", fieldLink);
+        linkTemplateMap.add("curveLink", curveLink);
+        linkTemplateMap.add("ol", orthogonalLink);
+        linkTemplateMap.add("fieldLink", fieldLink);
+
+        myDiagram.linkTemplateMap = linkTemplateMap;
+    }
+
+    function addGroupTemplatesToDiagram(myDiagram) {
+        var springGroup = $(go.Group, "Auto", {
+                // width: 900,
+                // height: 530,
+                // alignment: go.Spot.Center,
+                layout: $(go.ForceDirectedLayout, // automatically spread nodes apart
+                    {
+                        // defaultSpringLength: 30,
+                        // defaultElectricalCharge: 100
+                    })
+            },
+            new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+            new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(go.Size.stringify),
+            $(go.Shape, "Rectangle", {
+
+                fill: "rgba(128,128,128,0.2)",
+                stroke: "gray",
+                strokeWidth: 0
+            }),
+            $(go.Placeholder
+                // , {alignment: go.Spot.Center}
+                // , new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(go.Size.stringify)
+            )
+        );
+
+        var rtg =
+            $(go.Group, "Auto", { // define the group's internal layout
+                    layout: $(go.TreeLayout, {
+                        angle: 0,
+                        arrangement: go.TreeLayout.ArrangementVertical,
+                        isRealtime: false
+                    })
+                },
+                new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(go.Size.stringify),
+                $(go.Shape, "Rectangle", {
+                    fill: "rgba(128,128,128,0.2)",
+                    stroke: "gray",
+                    strokeWidth: 0
+                }),
+                $(go.Placeholder)
+            );
+
+        var btg =
+            $(go.Group, "Auto", { // define the group's internal layout
+
+                    // alignment: go.Spot.Left,
+
+                    // width: 900,
+                    // height: 330,
+                    layout: $(go.TreeLayout, {
+                        angle: 180,
+                        arrangement: go.TreeLayout.ArrangementHorizontal,
+                        isRealtime: false
+                    }),
+                    // the group begins unexpanded;
+                    // upon expansion, a Diagram Listener will generate contents for the group
+                    isSubGraphExpanded: true,
+                    // when a group is expanded, if it contains no parts, generate a subGraph inside of it
+                    subGraphExpandedChanged: function(group) {
+                        if (group.memberParts.count === 0) {
+                            randomGroup(group.data.key);
+                        }
+                    }
+                },
+                new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                $(go.Shape, "Rectangle", {
+                    fill: "rgba(128,128,128,0.2)",
+                    stroke: "crimson",
+                    strokeWidth: 0
+                }, new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(go.Size.stringify))
+                // ,
+                // $(go.Placeholder
+                //   // , {alignment: go.Spot.Left}
+                //   , new go.Binding("desiredSize", "size", go.Size.parse).makeTwoWay(go.Size.stringify)
+                //   )
+            );
+        var dataMapGroup =
+            $(go.Group, "Auto", { // define the group's internal layout
+                    layout: $(go.GridLayout, {
+                            wrappingColumn: 2,
+                            spacing: new go.Size(100, 50)
+                        })
+                        // ,
+                        // locationObjectName: "PH"
+                },
+                new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                $(go.Shape, "Rectangle", {
+
+                    fill: "rgba(128,128,128,0.1)",
+                    stroke: "gray",
+                    strokeWidth: 0
+                }),
+                $(go.Panel, "Vertical", {
+                        defaultAlignment: go.Spot.Center,
+                        margin: 4
+                    },
+                    $(go.TextBlock, {
+                        font: "Bold 18px Sans-Serif",
+                        margin: 4,
+                        text: "数据地图 - ETL"
+                    }),
+                    // create a placeholder to represent the area where the contents of the group are
+                    $(go.Placeholder, {
+                        // padding: 50
+                    }), $(go.Panel, "Horizontal", {
+                            // defaultAlignment: go.Spot.Center
+                        },
+                        $("Button", {
+                                margin: 2,
+                                click: returnToTopDiagram
+                            },
+                            $(go.TextBlock, "返回首页"))
+                    )
+                )
+            );
+
+        var systemGroup = $(go.Group, "Auto", {
+                layout: $(go.ForceDirectedLayout, // automatically spread nodes apart
+                    {
+                        // defaultSpringLength: 30,
+                        // defaultElectricalCharge: 100
+                    })
+            },
+            new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+            $(go.Shape, "RoundedRectangle", {
+                parameter1: 50,
+                fill: "rgba(128,128,128,0.2)",
+                stroke: "gray",
+                strokeWidth: 0
+            }),
+            $(go.Panel, "Vertical", {
+                    defaultAlignment: go.Spot.Center,
+                    margin: 15
+                },
+                $(go.TextBlock, {
+                    font: "Bold 18px Sans-Serif",
+                    margin: 4,
+                    text: "系统"
+                }, new go.Binding("text", "system")),
+                // create a placeholder to represent the area where the contents of the group are
+                $(go.Placeholder, {
+                    padding: 50
+                }), $(go.Panel, "Horizontal", {
+                        // defaultAlignment: go.Spot.Center
+                    },
+                    $("Button", {
+                            margin: 2,
+                            click: returnToTopDiagram
+                        },
+                        $(go.TextBlock, "返回首页"))
+                )
+            )
+        );
+
+        var tableDiagram = $(go.Group, "Auto", {
+                layout: $(go.LayeredDigraphLayout, // automatically spread nodes apart
+                    {
+                        // defaultSpringLength: 30,
+                        // defaultElectricalCharge: 100
+                        layerSpacing: 100,
+                        columnSpacing: 50
+                    })
+            },
+            new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+            $(go.Shape, "RoundedRectangle", {
+                parameter1: 50,
+                fill: "rgba(128,128,128,0.2)",
+                stroke: "gray",
+                strokeWidth: 0
+            }),
+            $(go.Panel, "Vertical", {
+                    defaultAlignment: go.Spot.Center,
+                    margin: 15
+                },
+                $(go.TextBlock, {
+                    font: "Bold 18px Sans-Serif",
+                    margin: 4
+                }, new go.Binding("text", "system")),
+                // create a placeholder to represent the area where the contents of the group are
+                $(go.Placeholder, {
+                    padding: 50
+                }), $(go.Panel, "Horizontal", {
+                        // defaultAlignment: go.Spot.Center
+                    },
+                    $("Button", {
+                            margin: 2,
+                            click: returnToTopDiagram
+                        },
+                        $(go.TextBlock, "返回首页"))
+                )
+            )
+        );
+
+        var groupTemplateMap = new go.Map("string", go.Group);
+
+        groupTemplateMap.add("", springGroup);
+        groupTemplateMap.add("springGroup", springGroup);
+        groupTemplateMap.add("rightTreeGroup", rtg);
+        groupTemplateMap.add("bottomTreeGroup", btg);
+        groupTemplateMap.add("dataMapGroup", dataMapGroup);
+        groupTemplateMap.add("systemGroup", systemGroup);
+        groupTemplateMap.add("tableDiagram", tableDiagram);
+
+        myDiagram.groupTemplateMap = groupTemplateMap;
+    }
+
+    function addNodeTemplatesToDiagram(myDiagarm) {
+
+        // the template we defined earlier
+        var dataNode =
+            $(go.Node, "Auto", {
+                    mouseEnter: onNodeMouseEnter,
+                    mouseLeave: onNodeMouseLeave,
+                    locationSpot: go.Spot.Center, // Node.location is the center of the Shape
+                    locationObjectName: "SHAPE",
+                    selectionAdorned: false
+                },
+                new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                $(go.Panel, "Horizontal",
+                    $(go.Picture, {
+                            margin: 10,
+                            width: 50,
+                            height: 50
+                        },
+                        new go.Binding("source") || "images/gear.svg"),
+
+                    $(go.TextBlock, "Default Text", {
+                            margin: 12,
+                            stroke: "white",
+                            font: "bold 16px sans-serif"
+                        }, new go.Binding("stroke", "isHighlighted", function(h) {
+                            return h ? "crimson" : "white";
+                        }).ofObject(),
+                        new go.Binding("text", "name").makeTwoWay())));
+
+        var horizontalNode =
+            $(go.Node, "Auto", {
+                    mouseEnter: onNodeMouseEnter,
+                    mouseLeave: onNodeMouseLeave,
+                    locationSpot: go.Spot.Center, // Node.location is the center of the Shape
+                    locationObjectName: "SHAPE",
+                    selectionAdorned: false,
+                    cursor: "pointer",
+                    click: onSystemClick
+                },
+                $(go.Panel, "Horizontal",
+                    $(go.Picture, {
+                            margin: 10,
+                            width: 50,
+                            height: 50
+                        },
+                        new go.Binding("source") || "images/gear.svg"),
+
+                    $(go.TextBlock, "Default Text", {
+                            margin: 12,
+                            stroke: "white",
+                            font: "bold 16px sans-serif"
+                        }, new go.Binding("stroke", "isHighlighted", function(h) {
+                            return h ? "crimson" : "white";
+                        }).ofObject(),
+                        new go.Binding("text", "name").makeTwoWay())));
+
+        var normalNode =
+            $(go.Node, "Auto", {
+
+                    mouseEnter: onNodeMouseEnter,
+                    mouseLeave: onNodeMouseLeave,
+                    cursor: "pointer",
+                    click: onSystemClick
+                },
+                // new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                $(go.Panel, "Vertical",
+                    $(go.Picture, {
+                            margin: 10,
+                            width: 50,
+                            height: 50
+                        },
+                        new go.Binding("source")),
+
+                    $(go.TextBlock, "Default Text", {
+                            margin: 12,
+                            stroke: "white",
+                            font: "bold 16px sans-serif"
+                        }, new go.Binding("stroke", "isHighlighted", function(h) {
+                            return h ? "crimson" : "white";
+                        }).ofObject(),
+                        new go.Binding("text", "name").makeTwoWay()))
+            )
+
+
+        var fieldTemplate =
+            $(go.Panel, "TableRow", // this Panel is a row in the containing Table
+                new go.Binding("portId", "name"), // this Panel is a "port"
+                {
+                    background: "transparent", // so this port's background can be picked by the mouse
+                    fromSpot: go.Spot.Right, // links only go from the right side to the left side
+                    toSpot: go.Spot.Left,
+                    // allow drawing links from or to this port:
+                    fromLinkable: true,
+                    toLinkable: true
+                },
+                $(go.Shape, {
+                        width: 12,
+                        height: 12,
+                        column: 0,
+                        strokeWidth: 2,
+                        margin: 4,
+                        // but disallow drawing links from or to this shape:
+                        fromLinkable: false,
+                        toLinkable: false,
+                        figure: "Diamond"
+                    },
+                    new go.Binding("fill", "isKey", function(isKey) {
+                        return isKey ? "red" : "green";
+                    })),
+                $(go.TextBlock, {
+                        margin: new go.Margin(0, 5),
+                        column: 1,
+                        font: "bold 13px sans-serif",
+                        alignment: go.Spot.Left,
+                        // and disallow drawing links from or to this text:
+                        fromLinkable: false,
+                        toLinkable: false
+                    },
+                    new go.Binding("text", "name")),
+                $(go.TextBlock, {
+                        margin: new go.Margin(0, 5),
+                        column: 2,
+                        font: "13px sans-serif",
+                        alignment: go.Spot.Left
+                    },
+                    new go.Binding("text", "desc"))
+            );
+        var tableNode = $(go.Node, "Auto", {
+                // movable: false,
+                copyable: false,
+                deletable: false
+            },
+            new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+            // this rectangular shape surrounds the content of the node
+            $(go.Shape, {
+                fill: "#EEEEEE"
+            }),
+            // the content consists of a header and a list of items
+            $(go.Panel, "Vertical",
+                // this is the header for the whole node
+                $(go.Panel, "Auto", {
+                        stretch: go.GraphObject.Horizontal
+                    }, // as wide as the whole node
+                    $(go.Shape, {
+                        fill: "#1570A6",
+                        stroke: null
+                    }),
+                    $(go.TextBlock, {
+                            alignment: go.Spot.Center,
+                            margin: 3,
+                            stroke: "white",
+                            textAlign: "center",
+                            font: "bold 12pt sans-serif"
+                        },
+                        new go.Binding("text", "", function(obj) {
+                          return obj.key+ "\n(" + obj.desc + ")";
+                        }))),
+                // this Panel holds a Panel for each item object in the itemArray;
+                // each item Panel is defined by the itemTemplate to be a TableRow in this Table
+                $(go.Panel, "Table", {
+                        padding: 2,
+                        minSize: new go.Size(150, 10),
+                        defaultStretch: go.GraphObject.Horizontal,
+                        itemTemplate: fieldTemplate
+                    },
+                    new go.Binding("itemArray", "fields")
+                ) // end Table Panel of items
+            ) // end Vertical Panel
+        )
+
+        var tableProfileNode =
+            $(go.Node, "Auto", {
+                    cursor: "pointer",
+                    click: onTableClick
+                },
+                $(go.Shape, "Ellipse", {
+                        fill: "lightgray",
+                        stroke: null
+                    },
+                    new go.Binding("fill", "fill")),
+
+                $(go.TextBlock, "Default Text", {
+                        margin: 12,
+                        stroke: "black",
+                        font: "14px sans-serif"
+                    }, new go.Binding("stroke", "isHighlighted", function(h) {
+                        return h ? "crimson" : "black";
+                    }).ofObject(),
+                    new go.Binding("text", "", function(obj) {
+                        return obj.key + "(" + obj.desc + ")";
+                    })))
+
+        var nodeTemplateMap = new go.Map("string", go.Node);
+
+        nodeTemplateMap.add("", normalNode);
+        nodeTemplateMap.add("horizontalNode", horizontalNode);
+        nodeTemplateMap.add("dataNode", dataNode);
+        nodeTemplateMap.add("tableNode", tableNode);
+        nodeTemplateMap.add("tableProfileNode", tableProfileNode);
+        nodeTemplateMap.add("tableDiagramNode", tableNode);
+
+        myDiagram.nodeTemplateMap = nodeTemplateMap;
+    }
+
+    function onNodeMouseEnter(e, node) {
+        var diagram = node.diagram;
+        diagram.startTransaction("highlight");
+        // remove any previous highlighting
+        diagram.clearHighlighteds();
+        node.isHighlighted = true;
+        // for each Link coming out of the Node, set Link.isHighlighted
+        node.findLinksOutOf().each(function(l) {
+            l.isHighlighted = true;
+        });
+        // for each Node destination for the Node, set Node.isHighlighted
+        node.findNodesOutOf().each(function(n) {
+            n.isHighlighted = true;
+        });
+        diagram.commitTransaction("highlight");
+    };
+
+    function onNodeMouseLeave(e, obj) {
+        myDiagram.clearHighlighteds();
+    };
+
+    function onLinkMouseEnter(e, link) {
+        var diagram = link.diagram;
+        diagram.startTransaction("highlight");
+        // remove any previous highlighting
+        diagram.clearHighlighteds();
+        link.isHighlighted = true;
+        link.fromNode.isHighlighted = true;
+        link.toNode.isHighlighted = true;
+        // for each Link coming out of the link, set Link.isHighlighted
+        // link.findLinksOutOf().each(function(l) {
+        //     l.isHighlighted = true;
+        // });
+        // // for each link destination for the link, set link.isHighlighted
+        // link.findNodesOutOf().each(function(n) {
+        //     n.isHighlighted = true;
+        // });
+        diagram.commitTransaction("highlight");
+    };
+
+    function onLinkMouseLeave(e, obj) {
+        myDiagram.clearHighlighteds();
+    };
+
+
+
+    function genDataDiagramData() {
+
+        var addDataDiagramNodeStyles = function(nodes) {
+            nodes.forEach(function(node) {
+                node.category = "tableNode";
+                node.group = "datamap";
+            })
+        }
+
+        var addDataDiagramLinkStyles = function(links) {
+            links.forEach(function(link) {
+                link.category = "fieldLink";
+                link.datamap = true;
+            })
+        }
+
+        var data = getDataDiagramMetaData();
+        addDataDiagramNodeStyles(data.nodes);
+
+        data.nodes = [{
+            key: "datamap",
+            isGroup: true,
+            category: "dataMapGroup",
+            loc: "200 200"
+        }].concat(data.nodes);
+        addDataDiagramLinkStyles(data.links);
+
+        // data.nodes = data.nodes.filter(function(node) {
+        //     return node.group === 'bp' || node.group === 'bc2' || node.group === 'bc1' || node.group === 'data'
+        // });
+
+        // data.nodes = data.groups.concat(data.nodes);
+        return data;
+    }
+
+    function genTopDiagramData() {
+        var addTopDiagramGroupStyles = function(groups) {
+            groups.forEach(function(group) {
+                var key = group.key;
+                if (key === 'bp' || key === "bp2") {
+                    group.category = "springGroup";
+                } else if (key === 'bc1') {
+                    group.category = "rightTreeGroup";
+                } else if (key === 'bc2') {
+                    group.category = "bottomTreeGroup";
+                }
+            })
+        }
+
+        var addTopDiagramNodeStyles = function(nodes) {
+            nodes.forEach(function(node) {
+                if ((node.group === 'bc1' || node.group === "bc2") && !/^fs/.test(node.key)) {
+                    node.category = "horizontalNode";
+                } else if (node.group === 'data') {
+                    node.category = "dataNode";
+                }
+                node.source = node.source || "images/gear.svg";
+            })
+        }
+
+        var addTopDiagramLinkStyles = function(links) {
+            links.forEach(function(link) {
+                link.category = "curveLink";
+                if (/^(fs)/.test(link.from)) {
+                    link.category = "ol";
+                }
+            })
+        }
+
+        var data = getTopDiagramMetaData();
+        addTopDiagramGroupStyles(data.groups);
+        addTopDiagramNodeStyles(data.nodes);
+        addTopDiagramLinkStyles(data.links);
+
+        data.nodes = data.nodes.filter(function(node) {
+            return node.group === 'bp' || node.group === 'bc2' || node.group === 'bc1' || node.group === 'data'
+        });
+
+        data.nodes = data.groups.concat(data.nodes);
+        return data;
+    }
+
+    function getTopDiagramMetaData() {
+        var nodes = [{
+                name: "核心系统",
+                key: "core",
+                group: "bp"
+            }, {
+                name: "网银系统",
+                key: "obs",
+                group: "bp"
+            }, {
+                name: "全流程信贷系统",
+                key: "ps",
+                group: "bp"
+            }, {
+                name: "中小企业贷款系统",
+                key: "ls",
+                group: "bp"
+            }, {
+                name: "黄金系统",
+                key: "gs",
+                group: "bp"
+            }, {
+                name: "商业贷款系统",
+                key: "bl",
+                group: "bp"
+            }, {
+                name: "CRM系统",
+                key: "crm",
+                group: "bp"
+            }, {
+                name: "父系统1",
+                key: "fs1",
+                group: "bc1"
+            }, {
+                name: "父系统2",
+                key: "fs2",
+                group: "bc1"
+            }, {
+                name: "父系统3",
+                key: "fs3",
+                group: "bc1"
+            }, {
+                name: "子系统1111",
+                key: "ss1",
+                group: "bc1"
+            }, {
+                name: "子系统1112",
+                key: "ss2",
+                group: "bc1"
+            }, {
+                name: "子系统1113",
+                key: "ss3",
+                group: "bc1"
+            }, {
+                name: "子系统1114",
+                key: "ss4",
+                group: "bc1"
+            }, {
+                name: "子系统1115",
+                key: "ss5",
+                group: "bc1"
+            }, {
+                name: "子系统1116",
+                key: "ss6",
+                group: "bc1"
+            }, {
+                name: "子系统1117",
+                key: "ss7",
+                group: "bc1"
+            }, {
+                name: "子系统1118",
+                key: "ss8",
+                group: "bc1"
+            }, {
+                name: "子系统1119",
+                key: "ss9",
+                group: "bc1"
+            }, {
+                name: "子系统1120",
+                key: "ss10",
+                group: "bc1"
+            }, {
+                name: "子系统1121",
+                key: "ss11",
+                group: "bc1"
+            },
+
+            {
+                name: "父系统1",
+                key: "fs21",
+                group: "bc2"
+            }, {
+                name: "父系统2",
+                key: "fs22",
+                group: "bc2"
+            }, {
+                name: "父系统3",
+                key: "fs33",
+                group: "bc2"
+            }, {
+                name: "子系统1111",
+                key: "ss21",
+                group: "bc2"
+            }, {
+                name: "子系统1112",
+                key: "ss22",
+                group: "bc2"
+            }, {
+                name: "子系统1113",
+                key: "ss23",
+                group: "bc2"
+            }, {
+                name: "子系统1114",
+                key: "ss24",
+                group: "bc2"
+            }, {
+                name: "子系统1115",
+                key: "ss25",
+                group: "bc2"
+            }, {
+                name: "子系统1116",
+                key: "ss26",
+                group: "bc2"
+            }, {
+                name: "子系统1117",
+                key: "ss27",
+                group: "bc2"
+            }, {
+                name: "子系统1118",
+                key: "ss28",
+                group: "bc2"
+            }, {
+                name: "子系统1119",
+                key: "ss29",
+                group: "bc2"
+            }, {
+                name: "子系统1120",
+                key: "ss210",
+                group: "bc2"
+            }, {
+                name: "子系统1121",
+                key: "ss211",
+                group: "bc2"
+            }, {
+                name: "DS",
+                key: "ds",
+                source: "images/anchor.svg",
+                loc: "700 -50",
+                group: "data"
+            }, {
+                name: "QSD",
+                key: "qsd",
+                loc: "850 -50",
+                source: "images/anchor.svg",
+                group: "data"
+            }, {
+                name: "ADW",
+                key: "adw",
+                loc: "800 500",
+                source: "images/balance3.svg",
+                group: "data"
+            }
+        ]
+
+        var groups = [
+            // {
+            //     name: "left group for layout",
+            //     isGroup: true,
+            //     size: "1000 900",
+
+            //     loc: "0 0",
+            //     key: "lg",
+            //     category: "lg"
+            // },
+
+            {
+                name: "业务生产类",
+                size: "800 530",
+                loc: "0 0",
+                isGroup: true,
+                group: "lg",
+                key: "bp"
+            }, {
+                name: "业务消费类2",
+                size: "1000 350",
+                loc: "-350 280",
+                isGroup: true,
+                group: "lg",
+                key: "bc2"
+            }, {
+                name: "业务消费类1",
+                loc: "1000 -320",
+                isGroup: true,
+                key: "bc1"
+            }
+        ]
+
+        var links = [{
+                from: "core",
+                text: "支撑xxx",
+                to: "obs"
+            }, {
+                from: "core",
+                text: "支撑xxx",
+                to: "ps"
+            }, {
+                from: "core",
+                text: "支撑xxx",
+                to: "ls"
+            }, {
+                from: "core",
+                text: "支撑xxx",
+                to: "gs"
+            }, {
+                from: "core",
+                text: "支撑xxx",
+                to: "bl"
+            }, {
+                from: "core",
+                text: "支撑xxx",
+                to: "crm"
+            }, {
+                to: "core",
+                text: "调用xxx",
+                from: "obs"
+            }, {
+                to: "core",
+                text: "调用xxx",
+                from: "ps"
+            }, {
+                to: "core",
+                text: "调用xxx",
+                from: "ls"
+            }, {
+                to: "core",
+                text: "调用xxx",
+                from: "gs"
+            }, {
+                to: "core",
+                text: "调用xxx",
+                from: "bl"
+            }, {
+                to: "core",
+                text: "调用xxx",
+                from: "crm"
+            },
+
+            {
+                "from": "fs1",
+                "to": "ss1"
+            }, {
+                "from": "fs1",
+                "to": "ss2"
+            }, {
+                "from": "fs1",
+                "to": "ss3"
+            }, {
+                "from": "fs1",
+                "to": "ss4"
+            }, {
+                "from": "fs1",
+                "to": "ss5"
+            }, {
+                "from": "fs1",
+                "to": "ss6"
+            }, {
+                "from": "fs2",
+                "to": "ss7"
+            }, {
+                "from": "fs2",
+                "to": "ss8"
+            }, {
+                "from": "fs2",
+                "to": "ss9"
+            }, {
+                "from": "fs3",
+                "to": "ss10"
+            }, {
+                "from": "fs3",
+                "to": "ss11"
+            }, {
+                "from": "fs3",
+                "to": "ss12"
+            },
+
+
+            {
+                "from": "fs21",
+                "to": "ss21"
+            }, {
+                "from": "fs21",
+                "to": "ss22"
+            }, {
+                "from": "fs21",
+                "to": "ss23"
+            }, {
+                "from": "fs21",
+                "to": "ss24"
+            }, {
+                "from": "fs22",
+                "to": "ss25"
+            }, {
+                "from": "fs22",
+                "to": "ss27"
+            }, {
+                "from": "fs22",
+                "to": "ss28"
+            }, {
+                "from": "fs33",
+                "to": "ss210"
+            }, {
+                "from": "fs33",
+                "to": "ss211"
+            }, {
+                "from": "fs33",
+                "to": "ss26"
+            }, {
+                "from": "fs22",
+                "to": "ss29"
+            },
+
+            {
+                "from": "ds",
+                text: "传输xxx",
+                "to": "qsd"
+            }, {
+                "from": "ds",
+                text: "传输xxx",
+                "to": "adw"
+            }, {
+                "from": "ds",
+                text: "传输xxx",
+                "to": "fs2"
+            }, {
+                "from": "adw",
+                text: "传输xxx",
+                "to": "fs33"
+            }, {
+                "from": "adw",
+                text: "传输xxx",
+                "to": "fs3"
+            },
+            // {
+            //     "from": "adw",
+            //     text: "传输xxx",
+            //     isOrthogonal: true,
+            //     "to": "fs22"
+            // }, {
+            //     "from": "adw",
+            //     text: "传输xxx",
+            //     isOrthogonal: true,
+            //     "to": "fs21"
+            // }, 
+            {
+                "from": "qsd",
+                text: "传输xxx",
+                "to": "fs1"
+            }, {
+                "from": "ls",
+                text: "传输xxx",
+                "to": "ds"
+            }
+
+        ]
+        return {
+            links: links,
+            nodes: nodes,
+            groups: groups
+        }
+    }
+
+    function genSystemDiagramData(systemName) {
+
+        var addSystemDiagramNodeStyles = function(nodes) {
+            nodes.forEach(function(node) {
+                node.category = "tableProfileNode";
+                node.group = "system";
+                node.fill = go.Brush.randomColor()
+            })
+        }
+
+        var addSystemDiagramLinkStyles = function(links) {
+            links.forEach(function(link) {
+                link.category = "curveLink";
+            })
+        }
+
+        var data = getSystemDiagramMetaData();
+        addSystemDiagramNodeStyles(data.nodes);
+
+        data.nodes = [{
+            key: "system",
+            isGroup: true,
+            category: "systemGroup",
+            loc: "200 200",
+            system: "数据地图 - 系统 - " + systemName,
+        }].concat(data.nodes);
+        addSystemDiagramLinkStyles(data.links);
+
+        // data.nodes = data.nodes.filter(function(node) {
+        //     return node.group === 'bp' || node.group === 'bc2' || node.group === 'bc1' || node.group === 'data'
+        // });
+
+        // data.nodes = data.groups.concat(data.nodes);
+        return data;
+    }
+
+    function genTableDiagramData(tableData) {
+
+        var addTableDiagramNodeStyles = function(nodes) {
+            nodes.forEach(function(node) {
+                node.category = "tableDiagramNode";
+                node.group = "tableDiagram";
+                node.fill = go.Brush.randomColor()
+            })
+        }
+
+        var addTableDiagramLinkStyles = function(links) {
+            links.forEach(function(link) {
+                link.category = "fieldLink";
+            })
+        }
+
+        var data = getTableDiagramMetaData();
+        addTableDiagramNodeStyles(data.nodes);
+
+        data.nodes = [{
+            key: "tableDiagram",
+            isGroup: true,
+            category: "tableDiagram",
+            system: "数据地图 - 表 - " + tableData.key + "(" + tableData.desc + ")"
+        }].concat(data.nodes);
+        addTableDiagramLinkStyles(data.links);
+
+        // data.nodes = data.nodes.filter(function(node) {
+        //     return node.group === 'bp' || node.group === 'bc2' || node.group === 'bc1' || node.group === 'data'
+        // });
+
+        // data.nodes = data.groups.concat(data.nodes);
+        return data;
+    }
+
+    function getDataDiagramMetaData() {
+        var nodeModels = [{
+            key: "product",
+            name: "Product",
+            desc: "产品",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }, {
+                name: "name",
+                desc: "名称"
+            }, {
+                name: "type",
+                desc: "类型"
+            }, {
+                name: "price",
+                desc: "价格"
+            }, {
+                name: "numbers",
+                desc: "数量"
+            }]
+        }, {
+            key: "customer",
+            name: "Customer",
+            desc: "客户",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }, {
+                name: "name",
+                desc: "名称"
+            }, {
+                name: "type",
+                desc: "类型"
+            }, {
+                name: "phone",
+                desc: "电话"
+            }, {
+                name: "email",
+                desc: "电子邮件"
+            }]
+        }]
+        var links = [];
+        var nodes = [];
+
+        var genRandomFieldsFrom = function(fields) {
+            var nfields = [{
+                name: fields[0].name,
+                desc: fields[0].desc,
+                isKey: true
+            }];
+            var fLength = fields.length;
+            var indexMap = {};
+            for (var i = 0; i < fLength - 1; i++) {
+                // debugger;
+                var fIndex = parseInt(Math.random() * (fLength - 1)) + 1;
+                if (indexMap[fIndex]) {
+                    continue;
+                }
+                nfields.push({
+                    name: fields[fIndex].name,
+                    desc: fields[fIndex].desc
+                })
+                indexMap[fIndex] = true;
+            }
+            return nfields;
+        }
+
+        var genNewTableFrom = function(table) {
+            var nTable = {
+                key: "n_" + table.key,
+                name: "N" + table.name,
+                desc: "N" + table.desc
+            }
+            var fields = table.fields;
+
+            var nFields = [{
+                name: "n" + fields[0].name,
+                desc: fields[0].desc,
+                isKey: true
+            }];
+            for (var i = 1; i < fields.length; i++) {
+                nFields.push({
+                    name: "n" + fields[i].name,
+                    desc: fields[i].desc
+                })
+            }
+            var fieldToShuffle = 1 + parseInt(Math.random() * (fields.length - 1));
+            if (fieldToShuffle > 1) {
+                var tmp = nFields[fieldToShuffle];
+                nFields[fieldToShuffle] = nFields[1];
+                nFields[1] = tmp;
+            }
+            nTable.fields = nFields;
+            return nTable;
+        }
+
+        var genLinksFrom = function(table) {
+            var tKey = table.key;
+            var fields = table.fields;
+            var links = [];
+            fields.forEach(function(field) {
+                links.push({
+                    from: tKey,
+                    fromPort: field.name,
+                    to: "n_" + tKey,
+                    toPort: "n" + field.name
+                })
+            })
+            return links;
+        }
+
+        for (var i = 0; i < 5; i++) {
+            var model = nodeModels[parseInt(Math.random() * 2)];
+            var oTable = {
+                key: model.key + i,
+                name: "T_" + model.name + "_" + i,
+                desc: "T_" + model.name + "_" + i,
+                fields: genRandomFieldsFrom(model.fields)
+            };
+            var nTable = genNewTableFrom(oTable);
+            nodes.push(oTable);
+            nodes.push(nTable);
+            var nLinks = genLinksFrom(oTable);
+            links = links.concat(nLinks);
+        }
+
+        return {
+            nodes: nodes,
+            links: links
+        }
+
+    }
+
+    function getSystemDiagramMetaData() {
+        var nodes = [{
+            key: "Product",
+            desc: "产品"
+        }, {
+            key: "Product_Customer",
+            desc: "产品客户关联表"
+        }, {
+            key: "Customer",
+            desc: "客户表"
+        }, {
+            key: "ProductType",
+            desc: "产品类型"
+        }, {
+            key: "LicenseType",
+            desc: "版权类型"
+        }, {
+            key: "Department",
+            desc: "部门"
+        }, {
+            key: "Release",
+            desc: "发布"
+        }, {
+            key: "Product_Release",
+            desc: "产品发布关联表"
+        }]
+        var links = [{
+            from: "Product",
+            to: "ProductType"
+        }, {
+            from: "Product",
+            to: "LicenseType"
+        }, {
+            from: "Product",
+            to: "Department"
+        }, {
+            from: "Product_Customer",
+            to: "Product"
+        }, {
+            from: "Product_Customer",
+            to: "Customer"
+        }, {
+            from: "Product_Release",
+            to: "Product"
+        }, {
+            from: "Product_Release",
+            to: "Release"
+        }]
+        return {
+            nodes: nodes,
+            links: links
+        }
+    }
+
+    function getTableDiagramMetaData() {
+        var nodes = [{
+            key: "ProductType",
+            desc: "产品类型",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }]
+        }, {
+            key: "LicenseType",
+            desc: "版权类型",
+            loc: "696.1746283797765 238.9018744735264",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }]
+        }, {
+            key: "Department",
+            desc: "部门",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }]
+        }, {
+            key: "Product_Customer",
+            desc: "产品客户关联表",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }, {
+                name: "pid",
+                desc: "产品编号"
+            }, {
+                name: "cid",
+                desc: "客户编号"
+            }]
+        }, {
+            key: "Product_Release",
+            desc: "产品发布表",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }, {
+                name: "pid",
+                desc: "产品编号"
+            }]
+        }, {
+            key: "Product",
+            desc: "产品",
+            fields: [{
+                name: "id",
+                desc: "编号",
+                isKey: true
+            }, {
+                name: "name",
+                desc: "名称"
+            }, {
+                name: "productTypeID",
+                desc: "产品类型编号",
+                isRef: true
+            }, {
+                name: "licenseTypeID",
+                desc: "版权类型编号",
+                isRef: true
+            }, {
+                name: "deptID",
+                desc: "部门编号",
+                isRef: true
+            }, {
+                name: "numbers",
+                desc: "数量"
+            }, {
+                name: "price",
+                desc: "价格"
+            }, {
+                name: "sid",
+                desc: "序列号"
+            }, {
+                name: "size",
+                desc: "大小"
+            }]
+        }]
+        var links = [{
+            from: "Product",
+            fromPort: "productTypeID",
+            to: "ProductType",
+            toPort: "id"
+        }, {
+            from: "Product",
+            fromPort: "licenseTypeID",
+            to: "LicenseType",
+            toPort: "id"
+        }, {
+            from: "Product",
+            fromPort: "deptID",
+            to: "Department",
+            toPort: "id"
+        }, {
+            from: "Product_Release",
+            fromPort: "pid",
+            to: "Product",
+            toPort: "id"
+        }, {
+            from: "Product_Customer",
+            fromPort: "pid",
+            to: "Product",
+            toPort: "id"
+        }]
+        return {
+            nodes: nodes,
+            links: links
+        }
+    }
+    </script>
+</head>
+
+<body onload="init()">
+    <div id="sample">
+        <div id="myDiagramDiv" style="border: solid 1px black; background-color:rgba(33, 150, 243, 0.71);width: 100%; height: 980px"></div>
+    </div>
+</body>
+
+</html>

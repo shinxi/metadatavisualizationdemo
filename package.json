@@ -1,0 +1,22 @@
+{
+  "name": "metadatavisulizationdemo",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shinxi/metadatavisulizaitondemo.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/shinxi/metadatavisulizaitondemo/issues"
+  },
+  "homepage": "https://github.com/shinxi/metadatavisulizaitondemo#readme",
+  "devDependencies": {
+    "express": "^4.14.0"
+  }
+}
