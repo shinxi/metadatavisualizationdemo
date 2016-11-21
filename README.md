@@ -1,4 +1,4 @@
-# metadatavisulizaitondemo
+# metadatavisualizationdemo
 A demo for Metadata Analysis Visulization, powered by GoJS
 
 
